@@ -1,0 +1,16 @@
+{
+  "name": "WRI SCAT (offline)",
+  "short_name": "WRI SCAT",
+  "description": "Shoreline assessment for WRI incidents: recon stops, SCAT surveys and treatment recommendations. Works without signal; uploads when you're back in coverage.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#171919",
+  "theme_color": "#3A3C3C",
+  "icons": [
+    { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "assets/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

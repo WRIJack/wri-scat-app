@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#3A3C3C">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="WRI SCAT">
+  <title>WRI SCAT</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+  <!-- ?v= stamps = APP_VERSION in sw.js; bump both together -->
+  <link rel="stylesheet" href="css/app.css?v=2026-10-29-1">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+</head>
+<body>
+  <header class="header">
+    <img src="assets/wri-logo.png" alt="" class="logo">
+    <h1 id="viewTitle">SCAT</h1>
+    <button class="hdr-btn" id="savedBtn" type="button">Saved <span id="savedCount"></span></button>
+  </header>
+  <div class="incbar"><label for="incidentSel">Incident</label><select id="incidentSel"></select></div>
+  <div class="hint incbar-hint" id="incidentHint"></div>
+
+  <div class="banner hidden" id="banner"></div>
+  <div class="card hidden" id="a2hsCard">
+    <b>Add WRI SCAT to your Home Screen.</b> Saved records are only safe from being cleared by the phone when the app is on your Home Screen.
+    Tap <b>Share</b> then <b>Add to Home Screen</b>.
+    <button class="link" id="a2hsDismiss" type="button">Got it</button>
+  </div>
+
+<!-- SCAT: Recon SCAT phase (2026-10-28). A hallway of its own (.sstep, not .step) with Back / Skip / Next;
+       every step can be skipped except the first (a record must name a segment or a location). -->
+  <main class="view" data-view="scat">
+    <div class="sprog"><div id="scProg" style="width:10%"></div></div>
+    <div class="phasebar hidden" id="scPhaseBar"><span id="scPhaseName"></span> <button class="link" id="scPhaseChange" type="button">change</button></div>
+    <div class="hint" id="scApiStatus"></div>
+    <!-- SCAT's own PIN (FORM_KINDS.scat.pin_scope): the incident Gateway PIN is never sent to the SCAT API -->
+    <div class="card hidden" id="scPinBox">
+      <b id="scPinMsg">Enter the SCAT PIN.</b> SCAT records upload with it.
+      <div class="row" style="margin-top:8px"><input id="scPinInput" inputmode="numeric" autocomplete="off" placeholder="SCAT PIN"><button class="btn btn-next" id="scPinBtn" type="button" style="flex:0 0 auto">Save</button></div>
+    </div>
+
+    <!-- Screen: phase chooser (shown until the phone has a phase; sticky after) -->
+    <section class="sstep" data-skey="phase">
+      <div class="sq">What are you doing?<small>This phone remembers your answer. Change it at the top of the tab.</small></div>
+      <div class="tiles one" id="scPhaseTiles">
+        <button type="button" class="tile t-amber" data-code="recon"><span>Recon SCAT<small>A fast look from a drone, a boat or the road: is there oil, how much, can a team get there, how urgent.</small></span></button>
+        <button type="button" class="tile t-blue" data-code="survey"><span>SCAT Survey<small>Walk the segment: bank character, oiled zones, pits, photos, and the treatment recommendation.</small></span></button>
+      </div>
+    </section>
+
+    <!-- Screen: where (the only required screen) -->
+    <section class="sstep active" data-skey="where">
+      <div class="sq">Where are you?<small>Use your location, then tap your segment. One is enough.</small></div>
+      <button class="btn btn-gps btn-big" id="scGps" type="button">📍 Use My Location</button>
+      <div class="coords" id="scCoords">No location yet</div>
+      <div class="map-wrap"><div id="scMap"></div><div class="map-msg" id="scMapMsg">Map needs signal. Use GPS or type the coordinates.</div></div>
+      <div class="hint center">Tap the map to drop or move the point.</div>
+      <button class="link stypelink" id="scTypeLoc" type="button">Type coordinates instead</button>
+      <div class="hidden" id="scLocBox">
+        <div class="row">
+          <div class="field"><label for="scLat">Latitude</label><input id="scLat" inputmode="decimal" placeholder="45.6868"></div>
+          <div class="field"><label for="scLon">Longitude</label><input id="scLon" inputmode="decimal" placeholder="109.4383"></div>
+        </div>
+        <!-- phone number keypads have no minus sign: hemisphere toggles supply it -->
+        <div class="row">
+          <div class="toggle" id="scLatHemi"><button type="button" data-val="N" class="active">North</button><button type="button" data-val="S">South</button></div>
+          <div class="toggle" id="scLonHemi"><button type="button" data-val="W" class="active">West</button><button type="button" data-val="E">East</button></div>
+        </div>
+        <div class="hint">Type the numbers only; West and North are assumed.</div>
+      </div>
+      <div class="sq" style="margin-top:18px">Segment<small>Nearest first once the segment layer carries locations.</small></div>
+      <div class="field"><input id="scSegSearch" placeholder="Find a segment, e.g. YEL-7.5" autocomplete="off"></div>
+      <div class="tiles one" id="scSegList"></div>
+      <button class="link stypelink hidden" id="scSegTyped" type="button">Not in the list: use what I typed as the segment ID</button>
+      <div class="picked hidden" id="scSegPicked"></div>
+      <div id="scBankBox">
+        <div class="sq" style="margin-top:18px">Which bank?<small>Facing downstream.</small></div>
+        <div class="tiles" id="scBank"></div>
+      </div>
+      <div class="sub-title">My SCAT records on this phone</div>
+      <div id="scList"></div>
+    </section>
+
+    <!-- Screen: one question answered by tiles (lists, yes/no, shoreline types, number presets) -->
+    <section class="sstep" data-skey="tiles">
+      <div class="sq" id="scTileQ"></div>
+      <div class="tiles" id="scTiles"></div>
+      <div class="row hidden" id="scTileNumBox" style="margin-top:12px; align-items:center">
+        <div class="field" style="margin:0"><input id="scTileNum" inputmode="decimal" placeholder="Number"></div>
+        <div class="hint" id="scTileUnit" style="flex:0 0 auto; margin:0 0 0 8px"></div>
+      </div>
+      <div class="field hidden" id="scTileNoteBox" style="margin-top:14px"><label for="scTileNote" id="scTileNoteLabel"></label><textarea id="scTileNote"></textarea></div>
+    </section>
+
+    <!-- Screen: survey team (sticky per phone) -->
+    <section class="sstep" data-skey="team">
+      <div class="sq">Who is surveying?<small>Asked once; this phone remembers it for the next segment.</small></div>
+      <div class="field"><label for="scTeamId">Team</label><input id="scTeamId" placeholder="e.g. SCAT-2"></div>
+      <div class="field"><label for="scTeamMembers">People on the team (optional)</label><textarea id="scTeamMembers" placeholder="Names, organisations, who records and who photographs"></textarea></div>
+    </section>
+
+    <!-- Screen: how much of the segment was surveyed -->
+    <section class="sstep" data-skey="extent">
+      <div class="sq">How much of the segment did you cover?</div>
+      <div class="tiles" id="scExtentTiles"></div>
+      <div class="field hidden" id="scExtentNumBox" style="margin-top:12px"><input id="scExtentNum" inputmode="decimal" placeholder="Length in metres"></div>
+      <button class="btn btn-gps btn-big" id="scEndGps" type="button" style="margin-top:18px">📍 Mark the end</button>
+      <div class="coords" id="scEndCoords">Not marked yet</div>
+    </section>
+
+    <!-- Screen: repeatable items (zones, pits) -->
+    <section class="sstep" data-skey="items">
+      <div class="sq" id="scItemsQ"></div>
+      <div class="tiles one" id="scItemsList"></div>
+      <button class="btn btn-next btn-big" id="scItemsAdd" type="button" style="margin-top:12px">+ Add</button>
+    </section>
+
+    <!-- Screen: zone / pit location -->
+    <section class="sstep" data-skey="zonegps">
+      <div class="sq" id="scZq"></div>
+      <button class="btn btn-gps btn-big" id="scZGps" type="button">📍 Use My Location</button>
+      <div class="coords" id="scZCoords">No location yet</div>
+      <div id="scZEndBox">
+        <button class="btn btn-ghost btn-big" id="scZEndGps" type="button" style="margin-top:12px">📍 Mark the downstream end (optional)</button>
+        <div class="coords" id="scZEndCoords">Not marked (uses the start)</div>
+      </div>
+    </section>
+
+    <!-- Screen: zone / pit notes -->
+    <section class="sstep" data-skey="itemnotes">
+      <div class="sq" id="scItemNotesQ"></div>
+      <div class="field"><textarea id="scItemNotes" placeholder="Optional"></textarea></div>
+      <button class="link stypelink" id="scItemRemove" type="button">Remove this one</button>
+    </section>
+
+    <!-- Screen: treatment recommendation -->
+    <section class="sstep" data-skey="str">
+      <div class="sq">Treatment recommendation<small>Ranked from the NOAA matrix for this bank and oil, with inland adjustments shown.</small></div>
+      <div id="scStrHead"></div>
+      <div class="tiles one" id="scStrList" style="margin-top:10px"></div>
+      <div class="hint center" id="scStrNA"></div>
+      <div class="field" style="margin-top:14px"><label for="scStrNotes">Why, and anything the cleanup team must know (optional)</label><textarea id="scStrNotes"></textarea></div>
+    </section>
+
+    <!-- Screen: photos -->
+    <section class="sstep" data-skey="photos">
+      <div class="sq">Photos<small>Looking downstream first, then the oil up close. They upload one at a time, so weak signal still works.</small></div>
+      <button class="btn btn-next btn-big" type="button" id="scCam">📷 Take a photo</button>
+      <button class="btn btn-ghost btn-big" type="button" id="scGal" style="margin-top:10px">🖼️ Add from the phone</button>
+      <input type="file" id="scCamInput" accept="image/*" capture="environment" hidden>
+      <input type="file" id="scGalInput" multiple hidden>
+      <div class="hint center" id="scPhotoCount">0 photos</div>
+      <div class="sphotos" id="scPhotoGrid"></div>
+    </section>
+
+    <!-- Screen: notes + who -->
+    <section class="sstep" data-skey="notes">
+      <div class="sq">Anything the SCAT team should know?<small>Optional. What you saw, what is downstream, what will not wait.</small></div>
+      <div class="field"><textarea id="scNotes" placeholder="Notes"></textarea></div>
+      <div class="row">
+        <div class="field"><label for="scTeam">Your team</label><input id="scTeam" placeholder="e.g. Drone 1"></div>
+        <div class="field"><label for="scName">Your name</label><input id="scName" placeholder="Name"></div>
+      </div>
+      <div class="field"><label for="scOrg">Organization</label><input id="scOrg" placeholder="e.g. WRI, county, contractor"></div>
+    </section>
+
+    <!-- Screen: review -->
+    <section class="sstep" data-skey="review">
+      <div class="sq">Check and save</div>
+      <div class="review" id="scReview"></div>
+      <div class="hint">Saving keeps it on this phone first. It uploads by itself whenever there's signal.</div>
+    </section>
+
+    <!-- Screen: saved (the end of a record; the only way on is a new record) -->
+    <section class="sstep" data-skey="done">
+      <div class="big center">✅</div>
+      <div class="sq center" id="scDoneTitle">Saved on this phone</div>
+      <div class="hint center" id="scDoneSub"></div>
+      <div class="tiles one" style="margin-top:18px">
+        <button type="button" class="tile t-blue" id="scDoneSame"><span>Another record on this segment<small>Keeps the segment, bank and location; starts at the first question.</small></span></button>
+        <button type="button" class="tile t-green" id="scDoneNew"><span>New record<small>Start from the beginning.</small></span></button>
+      </div>
+      <div class="hint center" style="margin-top:14px">Saved records are listed under "Saved" at the top of the screen.</div>
+    </section>
+
+    <div class="snav">
+      <button class="btn btn-back" id="scBack" type="button">Back</button>
+      <button class="btn btn-skip hidden" id="scSkip" type="button">Skip</button>
+      <button class="btn btn-next" id="scNext" type="button">Next</button>
+      <button class="btn btn-save hidden" id="scSave" type="button">Save</button>
+    </div>
+  </main>
+
+  
+  <!-- Saved -->
+  <div class="overlay hidden" id="savedOverlay">
+    <div class="box box-wide">
+      <div class="box-title">Saved on this phone <button class="link right" id="savedClose" type="button">Close</button></div>
+      <div class="hint" id="savedHint"></div>
+      <div id="savedList"></div>
+      <button class="btn btn-ghost" id="sendNowBtn" type="button">Upload now</button>
+    </div>
+  </div>
+
+  <div class="toast hidden" id="toast"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="js/config.js?v=2026-10-29-1"></script>
+  <script src="js/store.js?v=2026-10-29-1"></script>
+  <script src="js/api.js?v=2026-10-29-1"></script>
+  <script src="js/outbox.js?v=2026-10-29-1"></script>
+  <script src="js/forms.js?v=2026-10-29-1"></script>
+  <script src="js/shell.js?v=2026-10-29-1"></script>
+  <script src="js/scat-ui.js?v=2026-10-29-1"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+    }
+  </script>
+</body>
+</html>
