@@ -232,6 +232,8 @@
     if (s.preset) return s.preset.map(function (v) { return { code: String(v), label: v + ' ' + s.unit }; }).concat([{ code: '__other', label: 'Other…' }]);
     return list(s.list);
   }
+  /** The reference-photo key for a tile screen: its list name, or "shore" for the shoreline-type screens. */
+  function refKey(s) { return s.shore ? 'shore' : (s.list || ''); }
   function labelFor(s, code) {
     var o = optsFor(s).filter(function (x) { return x.code === String(code); })[0];
     return o ? o.label : (s.preset ? code + ' ' + s.unit : code);
@@ -258,6 +260,7 @@
     if (other) { $('scTileNum').value = v == null ? '' : v; $('scTileUnit').textContent = s.unit; }
     $('scTileNoteBox').classList.toggle('hidden', !s.note);
     if (s.note) { $('scTileNoteLabel').textContent = s.note.label; $('scTileNote').value = d[s.note.field] || ''; }
+    $('scRefBtn').classList.toggle('hidden', !(window.ScatRef && ScatRef.has(refKey(s))));
   }
   var lastGo = 0;   // taps in the first 300 ms after a screen change are ignored (gloved double-taps)
   function onTile(code) {
@@ -526,6 +529,7 @@
         '<small>' + A.esc(lines.filter(Boolean).join(' · ')) + '</small></span>' + (on ? '<span class="ck">✓</span>' : '') + '</button>';
     }).join('');
     $('scStrNA').textContent = rows ? (rows.filter(function (r) { return r.adjusted === '-'; }).length + ' methods not applicable here are hidden.') : '';
+    $('scStrRefBtn').classList.toggle('hidden', !(rows && window.ScatRef && ScatRef.has('methods')));
     $('scStrNotes').value = F.str.rationale || '';
   }
 
@@ -655,6 +659,7 @@
     if (zr.result === 'residual') {
       tiles($('scRZThick'), list('thickness'), zr.thickness, false, { thick: 'red', cover: 'orange', coat: 'amber', stain: 'blue', film: 'green' });
       tiles($('scRZChar'), list('oil_character'), zr.oil_character, true, null, 'red');
+      $('scRZRefBtn').classList.toggle('hidden', !(window.ScatRef && ScatRef.has('thickness')));
     }
     var n = photosTagged('zone:' + z.uuid);
     $('scRZPhotoN').textContent = n ? n + ' photo' + (n === 1 ? '' : 's') + ' of this zone' : '';
@@ -1091,6 +1096,16 @@
       $(id).addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; [].forEach.call($(id).children, function (x) { x.classList.toggle('active', x === b); }); typed(); });
     });
     $('scTiles').addEventListener('click', function (e) { var b = e.target.closest('.tile'); if (b) onTile(b.dataset.code); });
+    // Reference photos: open the sheet for the current screen; a tapped photo picks its tile (single) or toggles it (multi).
+    $('scRefBtn').addEventListener('click', function () {
+      var s = cur(); if (!s || s.section !== 'tiles') return;
+      ScatRef.open(refKey(s), s.q, function (c) { return labelFor(s, c); }, function (c) { lastGo = 0; onTile(c); });
+    });
+    $('scStrRefBtn').addEventListener('click', function () { ScatRef.open('methods', 'Treatment methods', null, null); });
+    $('scRZRefBtn').addEventListener('click', function () {
+      ScatRef.open('thickness', 'How thick is what is left?', function (c) { return label('thickness', c); }, function (c) { onRZoneTile('thickness', c); });
+    });
+    window.addEventListener('ref:ready', function () { if (F && F.phase) render(); });
     $('scTileNum').addEventListener('input', function () { var s = cur(); if (s.preset) data()[s.field] = this.value === '' ? '' : Number(this.value); });
     $('scTileNote').addEventListener('input', function () { var s = cur(); if (s.note) data()[s.note.field] = this.value; });
     $('scTeamId').addEventListener('input', function () { F.team_id = this.value.trim(); });

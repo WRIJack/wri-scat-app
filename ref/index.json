@@ -1,0 +1,790 @@
+{
+ "version": "2026-10-30-a",
+ "source": "NOAA Shoreline Assessment Job Aid, September 2014 (Office of Response and Restoration)",
+ "credit": "Photos: NOAA Shoreline Assessment Job Aid (Sept 2014), contributed by M.O. Hayes and J. Michel, Research Planning Inc. Percent-cover charts: Owens and Sergy 1994, Environment Canada, as reproduced by NOAA.",
+ "license_note": "Reproduced for field reference. Photo permission from Research Planning Inc. requested, not yet confirmed (2026-10-30).",
+ "items": [
+  {
+   "id": "dist_continuous",
+   "file": "distribution_continuous.jpg",
+   "w": 640,
+   "h": 430,
+   "category": "Surface oil distribution",
+   "label": "Continuous (91-100% cover)",
+   "caption": "black oil on light sand beach",
+   "noaa": "C",
+   "targets": [
+    "oil_extent:continuous",
+    "distribution_band:continuous"
+   ]
+  },
+  {
+   "id": "dist_broken",
+   "file": "distribution_broken.jpg",
+   "w": 640,
+   "h": 431,
+   "category": "Surface oil distribution",
+   "label": "Broken (51-90% cover)",
+   "caption": "brown oil on tan sand beach",
+   "noaa": "B",
+   "targets": [
+    "oil_extent:broken",
+    "distribution_band:broken"
+   ]
+  },
+  {
+   "id": "dist_patchy",
+   "file": "distribution_patchy.jpg",
+   "w": 640,
+   "h": 429,
+   "category": "Surface oil distribution",
+   "label": "Patchy (11-50% cover)",
+   "caption": "black oil bands on a white sand beachface",
+   "noaa": "P",
+   "targets": [
+    "oil_extent:patchy",
+    "distribution_band:patchy"
+   ]
+  },
+  {
+   "id": "dist_sporadic",
+   "file": "distribution_sporadic.jpg",
+   "w": 640,
+   "h": 436,
+   "category": "Surface oil distribution",
+   "label": "Sporadic (1-10% cover)",
+   "caption": "brown oil bands on a white sand beachface",
+   "noaa": "S",
+   "targets": [
+    "oil_extent:sporadic",
+    "distribution_band:sporadic"
+   ]
+  },
+  {
+   "id": "thick_pooled",
+   "file": "thickness_pooled_oil.jpg",
+   "w": 640,
+   "h": 436,
+   "category": "Thickness",
+   "label": "Pooled / thick oil (>1 cm)",
+   "caption": "accumulation around a large boulder",
+   "noaa": "PO/TO",
+   "targets": [
+    "thickness:thick"
+   ]
+  },
+  {
+   "id": "thick_cover",
+   "file": "thickness_cover.jpg",
+   "w": 640,
+   "h": 430,
+   "category": "Thickness",
+   "label": "Cover (0.1-1 cm)",
+   "caption": "oil covering sand beach surface and running into a small trench",
+   "noaa": "CV",
+   "targets": [
+    "thickness:cover"
+   ]
+  },
+  {
+   "id": "thick_coat",
+   "file": "thickness_coat.jpg",
+   "w": 640,
+   "h": 439,
+   "category": "Thickness",
+   "label": "Coat (<0.1 cm, scrapes off with fingernail)",
+   "caption": "thin layer of oil on riprap",
+   "noaa": "CT",
+   "targets": [
+    "thickness:coat"
+   ]
+  },
+  {
+   "id": "thick_stain",
+   "file": "thickness_stain.jpg",
+   "w": 640,
+   "h": 423,
+   "category": "Thickness",
+   "label": "Stain (cannot be scraped off)",
+   "caption": "splotches on cobbles",
+   "noaa": "ST",
+   "targets": [
+    "thickness:stain"
+   ]
+  },
+  {
+   "id": "thick_film",
+   "file": "thickness_film.jpg",
+   "w": 640,
+   "h": 432,
+   "category": "Thickness",
+   "label": "Film (transparent or iridescent sheen)",
+   "caption": "oil sheen floating on water",
+   "noaa": "FL",
+   "targets": [
+    "thickness:film",
+    "sheen_color:*"
+   ]
+  },
+  {
+   "id": "type_fresh",
+   "file": "type_fresh_oil.jpg",
+   "w": 640,
+   "h": 430,
+   "category": "Oil character",
+   "label": "Fresh oil (unweathered, liquid)",
+   "caption": "",
+   "noaa": "FR",
+   "targets": [
+    "oil_character:fresh"
+   ]
+  },
+  {
+   "id": "type_mousse",
+   "file": "type_mousse.jpg",
+   "w": 640,
+   "h": 432,
+   "category": "Oil character",
+   "label": "Mousse (emulsified)",
+   "caption": "brown oil coating cobbles",
+   "noaa": "MS",
+   "targets": [
+    "oil_character:mousse"
+   ]
+  },
+  {
+   "id": "type_tarballs",
+   "file": "type_tarballs.jpg",
+   "w": 640,
+   "h": 434,
+   "category": "Oil character",
+   "label": "Tarballs (<10 cm)",
+   "caption": "scattered on sand beach",
+   "noaa": "TB",
+   "targets": [
+    "oil_character:tar_balls"
+   ]
+  },
+  {
+   "id": "type_patties",
+   "file": "type_patties.jpg",
+   "w": 640,
+   "h": 429,
+   "category": "Oil character",
+   "label": "Patties (>10 cm)",
+   "caption": "single black patty on sand beach",
+   "noaa": "PT",
+   "targets": [
+    "oil_character:patties"
+   ]
+  },
+  {
+   "id": "type_tar",
+   "file": "type_tar.jpg",
+   "w": 640,
+   "h": 438,
+   "category": "Oil character",
+   "label": "Tar (highly weathered, nearly solid)",
+   "caption": "",
+   "noaa": "TC",
+   "targets": [
+    "oil_character:tar"
+   ]
+  },
+  {
+   "id": "type_surface_residue",
+   "file": "type_surface_oil_residue.jpg",
+   "w": 640,
+   "h": 436,
+   "category": "Oil character",
+   "label": "Surface oil residue (non-cohesive, soft incipient pavement)",
+   "caption": "",
+   "noaa": "SR",
+   "targets": [
+    "oil_character:surface_residue"
+   ]
+  },
+  {
+   "id": "type_asphalt",
+   "file": "type_asphalt_pavement.jpg",
+   "w": 640,
+   "h": 433,
+   "category": "Oil character",
+   "label": "Asphalt pavement (cohesive, heavily oiled sediment)",
+   "caption": "thick black deposit on a beachface",
+   "noaa": "AP",
+   "targets": [
+    "oil_character:asphalt"
+   ]
+  },
+  {
+   "id": "sub_sap",
+   "file": "subsurface_asphalt_pavement.jpg",
+   "w": 640,
+   "h": 432,
+   "category": "Subsurface oiling",
+   "label": "Subsurface asphalt pavement (buried hardened layer)",
+   "caption": "black layer buried in a white sand beach",
+   "noaa": "SAP",
+   "targets": [
+    "subsurface_character:*"
+   ]
+  },
+  {
+   "id": "sub_op",
+   "file": "subsurface_oil_filled_pores.jpg",
+   "w": 640,
+   "h": 434,
+   "category": "Subsurface oiling",
+   "label": "Oil-filled pores (oil flows out when disturbed)",
+   "caption": "brown oil pebbles",
+   "noaa": "OP",
+   "targets": [
+    "subsurface_character:oil_filled_pores"
+   ]
+  },
+  {
+   "id": "sub_pp",
+   "file": "subsurface_partially_filled_pores.jpg",
+   "w": 640,
+   "h": 433,
+   "category": "Subsurface oiling",
+   "label": "Partially filled pores (does not flow out)",
+   "caption": "",
+   "noaa": "PP",
+   "targets": [
+    "subsurface_character:partially_filled_pores"
+   ]
+  },
+  {
+   "id": "sub_or",
+   "file": "subsurface_oil_residue.jpg",
+   "w": 640,
+   "h": 429,
+   "category": "Subsurface oiling",
+   "label": "Oil residue (coat/cover on clasts, little in pores)",
+   "caption": "",
+   "noaa": "OR",
+   "targets": [
+    "subsurface_character:oil_residue"
+   ]
+  },
+  {
+   "id": "sub_of",
+   "file": "subsurface_oil_film.jpg",
+   "w": 640,
+   "h": 438,
+   "category": "Subsurface oiling",
+   "label": "Oil film (sheen or stain on clasts)",
+   "caption": "",
+   "noaa": "OF",
+   "targets": [
+    "subsurface_character:oil_film"
+   ]
+  },
+  {
+   "id": "sed_bedrock",
+   "file": "sediment_bedrock.jpg",
+   "w": 640,
+   "h": 436,
+   "category": "Sediment type",
+   "label": "Bedrock outcrop",
+   "caption": "",
+   "noaa": "R",
+   "targets": [
+    "shore:bedrock_cliff",
+    "shore:bedrock_ramp"
+   ]
+  },
+  {
+   "id": "sed_boulder",
+   "file": "sediment_boulder.jpg",
+   "w": 640,
+   "h": 439,
+   "category": "Sediment type",
+   "label": "Boulder (>256 mm)",
+   "caption": "",
+   "noaa": "B",
+   "targets": [
+    "shore:boulder"
+   ]
+  },
+  {
+   "id": "sed_cobble",
+   "file": "sediment_cobble.jpg",
+   "w": 640,
+   "h": 429,
+   "category": "Sediment type",
+   "label": "Cobble (64-256 mm)",
+   "caption": "",
+   "noaa": "C",
+   "targets": [
+    "shore:cobble_gravel"
+   ]
+  },
+  {
+   "id": "sed_pebble",
+   "file": "sediment_pebble.jpg",
+   "w": 640,
+   "h": 428,
+   "category": "Sediment type",
+   "label": "Pebble (4-64 mm)",
+   "caption": "",
+   "noaa": "P",
+   "targets": [
+    "shore:cobble_gravel"
+   ]
+  },
+  {
+   "id": "sed_granule",
+   "file": "sediment_granule.jpg",
+   "w": 640,
+   "h": 430,
+   "category": "Sediment type",
+   "label": "Granule (2-4 mm)",
+   "caption": "",
+   "noaa": "G",
+   "targets": [
+    "shore:mixed_coarse"
+   ]
+  },
+  {
+   "id": "sed_sand",
+   "file": "sediment_sand.jpg",
+   "w": 640,
+   "h": 437,
+   "category": "Sediment type",
+   "label": "Sand (0.06-4 mm)",
+   "caption": "",
+   "noaa": "S",
+   "targets": [
+    "shore:sand"
+   ]
+  },
+  {
+   "id": "sed_mud",
+   "file": "sediment_mud.jpg",
+   "w": 640,
+   "h": 433,
+   "category": "Sediment type",
+   "label": "Mud (silt and clay)",
+   "caption": "",
+   "noaa": "M",
+   "targets": [
+    "shore:silt_clay_bank",
+    "shore:mud_flat"
+   ]
+  },
+  {
+   "id": "esi_1",
+   "file": "esi_1_exposed_rocky_shores.jpg",
+   "w": 640,
+   "h": 427,
+   "category": "Shoreline type (ESI)",
+   "label": "Exposed rocky shores (incl. exposed seawalls)",
+   "caption": "",
+   "noaa": "ESI 1",
+   "targets": [
+    "shore:bedrock_cliff"
+   ],
+   "marine": true
+  },
+  {
+   "id": "esi_2",
+   "file": "esi_2_exposed_rocky_platforms.jpg",
+   "w": 640,
+   "h": 433,
+   "category": "Shoreline type (ESI)",
+   "label": "Exposed rocky platforms (incl. clay scarps)",
+   "caption": "",
+   "noaa": "ESI 2",
+   "targets": [
+    "shore:bedrock_ramp"
+   ],
+   "marine": true
+  },
+  {
+   "id": "esi_3",
+   "file": "esi_3_fine_sand_beaches.jpg",
+   "w": 640,
+   "h": 438,
+   "category": "Shoreline type (ESI)",
+   "label": "Fine-grained sand beaches (incl. scarps in sand)",
+   "caption": "",
+   "noaa": "ESI 3",
+   "targets": [
+    "shore:sand"
+   ],
+   "marine": true
+  },
+  {
+   "id": "esi_4",
+   "file": "esi_4_coarse_sand_beaches.jpg",
+   "w": 640,
+   "h": 433,
+   "category": "Shoreline type (ESI)",
+   "label": "Coarse-grained sand beaches",
+   "caption": "",
+   "noaa": "ESI 4",
+   "targets": [
+    "shore:sand"
+   ],
+   "marine": true
+  },
+  {
+   "id": "esi_5",
+   "file": "esi_5_mixed_sand_gravel.jpg",
+   "w": 640,
+   "h": 480,
+   "category": "Shoreline type (ESI)",
+   "label": "Mixed sand and gravel beaches",
+   "caption": "",
+   "noaa": "ESI 5",
+   "targets": [
+    "shore:mixed_coarse"
+   ],
+   "marine": true
+  },
+  {
+   "id": "esi_6a",
+   "file": "esi_6a_gravel_beaches.jpg",
+   "w": 640,
+   "h": 443,
+   "category": "Shoreline type (ESI)",
+   "label": "Gravel beaches (incl. shell)",
+   "caption": "",
+   "noaa": "ESI 6a",
+   "targets": [
+    "shore:cobble_gravel"
+   ],
+   "marine": true
+  },
+  {
+   "id": "esi_6b",
+   "file": "esi_6b_riprap.jpg",
+   "w": 640,
+   "h": 427,
+   "category": "Shoreline type (ESI)",
+   "label": "Riprap structures",
+   "caption": "",
+   "noaa": "ESI 6b",
+   "targets": [
+    "shore:riprap"
+   ],
+   "marine": true
+  },
+  {
+   "id": "esi_7",
+   "file": "esi_7_exposed_tidal_flats.jpg",
+   "w": 640,
+   "h": 443,
+   "category": "Shoreline type (ESI)",
+   "label": "Exposed tidal flats",
+   "caption": "",
+   "noaa": "ESI 7",
+   "targets": [
+    "shore:mud_flat"
+   ],
+   "marine": true
+  },
+  {
+   "id": "esi_8a",
+   "file": "esi_8a_sheltered_rocky.jpg",
+   "w": 640,
+   "h": 423,
+   "category": "Shoreline type (ESI)",
+   "label": "Sheltered rocky shores",
+   "caption": "",
+   "noaa": "ESI 8a",
+   "targets": [
+    "shore:*"
+   ],
+   "marine": true
+  },
+  {
+   "id": "esi_8b",
+   "file": "esi_8b_sheltered_manmade.jpg",
+   "w": 640,
+   "h": 425,
+   "category": "Shoreline type (ESI)",
+   "label": "Sheltered man-made structures",
+   "caption": "",
+   "noaa": "ESI 8b",
+   "targets": [
+    "shore:manmade_solid"
+   ],
+   "marine": true
+  },
+  {
+   "id": "esi_9",
+   "file": "esi_9_sheltered_tidal_flats.jpg",
+   "w": 640,
+   "h": 433,
+   "category": "Shoreline type (ESI)",
+   "label": "Sheltered tidal flats",
+   "caption": "",
+   "noaa": "ESI 9",
+   "targets": [
+    "shore:mud_flat"
+   ],
+   "marine": true
+  },
+  {
+   "id": "esi_10a",
+   "file": "esi_10a_salt_brackish_marsh.jpg",
+   "w": 640,
+   "h": 429,
+   "category": "Shoreline type (ESI)",
+   "label": "Salt to brackish marshes",
+   "caption": "",
+   "noaa": "ESI 10a",
+   "targets": [
+    "shore:marsh_wetland"
+   ],
+   "marine": true
+  },
+  {
+   "id": "esi_10b",
+   "file": "esi_10b_freshwater_marsh.jpg",
+   "w": 640,
+   "h": 429,
+   "category": "Shoreline type (ESI)",
+   "label": "Freshwater marshes",
+   "caption": "",
+   "noaa": "ESI 10b",
+   "targets": [
+    "shore:marsh_wetland"
+   ],
+   "marine": true
+  },
+  {
+   "id": "esi_10c",
+   "file": "esi_10c_swamp.jpg",
+   "w": 640,
+   "h": 418,
+   "category": "Shoreline type (ESI)",
+   "label": "Swamps",
+   "caption": "",
+   "noaa": "ESI 10c",
+   "targets": [
+    "shore:wooded_bank",
+    "shore:marsh_wetland"
+   ],
+   "marine": true
+  },
+  {
+   "id": "esi_10d",
+   "file": "esi_10d_mangroves.jpg",
+   "w": 640,
+   "h": 433,
+   "category": "Shoreline type (ESI)",
+   "label": "Mangroves",
+   "caption": "",
+   "noaa": "ESI 10d",
+   "targets": [
+    "shore:*"
+   ],
+   "marine": true
+  },
+  {
+   "id": "meth_barriers",
+   "file": "method_barriers_berms.jpg",
+   "w": 640,
+   "h": 419,
+   "category": "Cleanup method",
+   "label": "Barriers / berms",
+   "caption": "",
+   "noaa": "",
+   "targets": [
+    "methods:Barriers/Berms"
+   ]
+  },
+  {
+   "id": "meth_herding",
+   "file": "method_physical_herding.jpg",
+   "w": 640,
+   "h": 423,
+   "category": "Cleanup method",
+   "label": "Physical herding",
+   "caption": "",
+   "noaa": "",
+   "targets": [
+    "methods:Physical Herding"
+   ]
+  },
+  {
+   "id": "meth_manual",
+   "file": "method_manual_removal.jpg",
+   "w": 640,
+   "h": 430,
+   "category": "Cleanup method",
+   "label": "Manual oil removal / cleaning",
+   "caption": "",
+   "noaa": "",
+   "targets": [
+    "methods:Manual Oil Removal/Cleaning"
+   ]
+  },
+  {
+   "id": "meth_mechanical",
+   "file": "method_mechanical_removal.jpg",
+   "w": 640,
+   "h": 436,
+   "category": "Cleanup method",
+   "label": "Mechanical oil removal",
+   "caption": "",
+   "noaa": "",
+   "targets": [
+    "methods:Mechanical Oil Removal"
+   ]
+  },
+  {
+   "id": "meth_sorbents",
+   "file": "method_sorbents.jpg",
+   "w": 640,
+   "h": 427,
+   "category": "Cleanup method",
+   "label": "Sorbents",
+   "caption": "",
+   "noaa": "",
+   "targets": [
+    "methods:Sorbents"
+   ]
+  },
+  {
+   "id": "meth_vacuum",
+   "file": "method_vacuum.jpg",
+   "w": 640,
+   "h": 434,
+   "category": "Cleanup method",
+   "label": "Vacuum",
+   "caption": "",
+   "noaa": "",
+   "targets": [
+    "methods:Vacuum"
+   ]
+  },
+  {
+   "id": "meth_debris",
+   "file": "method_debris_removal.jpg",
+   "w": 640,
+   "h": 436,
+   "category": "Cleanup method",
+   "label": "Debris removal",
+   "caption": "",
+   "noaa": "",
+   "targets": [
+    "methods:Debris Removal"
+   ]
+  },
+  {
+   "id": "meth_tilling",
+   "file": "method_sediment_reworking.jpg",
+   "w": 640,
+   "h": 426,
+   "category": "Cleanup method",
+   "label": "Sediment reworking / tilling",
+   "caption": "",
+   "noaa": "",
+   "targets": [
+    "methods:Sediment Reworking/Tilling"
+   ]
+  },
+  {
+   "id": "meth_vegcut",
+   "file": "method_vegetation_cutting.jpg",
+   "w": 640,
+   "h": 424,
+   "category": "Cleanup method",
+   "label": "Vegetation cutting / removal",
+   "caption": "",
+   "noaa": "",
+   "targets": [
+    "methods:Vegetation Cutting/Removal"
+   ]
+  },
+  {
+   "id": "meth_flooding",
+   "file": "method_flooding_deluge.jpg",
+   "w": 640,
+   "h": 433,
+   "category": "Cleanup method",
+   "label": "Flooding (deluge)",
+   "caption": "",
+   "noaa": "",
+   "targets": [
+    "methods:Flooding (deluge)"
+   ]
+  },
+  {
+   "id": "meth_lowflush",
+   "file": "method_low_pressure_flushing.jpg",
+   "w": 640,
+   "h": 418,
+   "category": "Cleanup method",
+   "label": "Low-pressure flushing",
+   "caption": "",
+   "noaa": "",
+   "targets": [
+    "methods:Low-pressure, Ambient Water Flushing"
+   ]
+  },
+  {
+   "id": "meth_highflush",
+   "file": "method_high_pressure_flushing.jpg",
+   "w": 640,
+   "h": 434,
+   "category": "Cleanup method",
+   "label": "High-pressure flushing",
+   "caption": "",
+   "noaa": "",
+   "targets": [
+    "methods:High-pressure, Ambient Water Flushing"
+   ]
+  },
+  {
+   "id": "meth_hotflush",
+   "file": "method_high_pressure_hot_water.jpg",
+   "w": 640,
+   "h": 411,
+   "category": "Cleanup method",
+   "label": "High-pressure, hot-water flushing",
+   "caption": "",
+   "noaa": "",
+   "targets": [
+    "methods:High-pressure, Hot Water Flushing",
+    "methods:Low-pressure, Hot Water Flushing"
+   ]
+  },
+  {
+   "id": "chart_percent_cover_bands",
+   "file": "chart_percent_cover_bands.jpg",
+   "w": 1280,
+   "h": 472,
+   "category": "Percent cover chart",
+   "label": "Percent cover chart - oil bands (Owens and Sergy 1994)",
+   "caption": "",
+   "noaa": "",
+   "targets": [
+    "oil_extent:*",
+    "distribution_band:*"
+   ],
+   "chart": true
+  },
+  {
+   "id": "chart_percent_cover_discrete",
+   "file": "chart_percent_cover_discrete.jpg",
+   "w": 1280,
+   "h": 712,
+   "category": "Percent cover chart",
+   "label": "Percent cover chart - discrete deposits / tarballs",
+   "caption": "",
+   "noaa": "",
+   "targets": [
+    "oil_extent:*",
+    "distribution_band:*"
+   ],
+   "chart": true
+  }
+ ]
+}

@@ -10,7 +10,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
   <!-- ?v= stamps = APP_VERSION in sw.js; bump both together -->
-  <link rel="stylesheet" href="css/app.css?v=2026-10-30-1">
+  <link rel="stylesheet" href="css/app.css?v=2026-10-30-2">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 </head>
 <body>
@@ -91,6 +91,7 @@
     <section class="sstep" data-skey="tiles">
       <div class="sq" id="scTileQ"></div>
       <div class="tiles" id="scTiles"></div>
+      <button class="btn btn-ghost refbtn hidden" type="button" id="scRefBtn">📷 What does this look like?</button>
       <div class="row hidden" id="scTileNumBox" style="margin-top:12px; align-items:center">
         <div class="field" style="margin:0"><input id="scTileNum" inputmode="decimal" placeholder="Number"></div>
         <div class="hint" id="scTileUnit" style="flex:0 0 auto; margin:0 0 0 8px"></div>
@@ -176,6 +177,7 @@
         <div class="tiles" id="scRZThick"></div>
         <div class="subq">What does it look like? <span class="hint" style="display:inline">Tap all that apply.</span></div>
         <div class="tiles" id="scRZChar"></div>
+        <button class="btn btn-ghost refbtn hidden" type="button" id="scRZRefBtn">📷 What does this look like?</button>
       </div>
       <button class="btn btn-ghost btn-big" type="button" id="scRZCam" style="margin-top:14px">📷 Photo of this zone</button>
       <div class="hint center" id="scRZPhotoN"></div>
@@ -212,6 +214,7 @@
       <div id="scStrHead"></div>
       <div class="tiles one" id="scStrList" style="margin-top:10px"></div>
       <div class="hint center" id="scStrNA"></div>
+      <button class="btn btn-ghost refbtn hidden" type="button" id="scStrRefBtn">📷 What do these methods look like?</button>
       <div class="field" style="margin-top:14px"><label for="scStrNotes">Why, and anything the cleanup team must know (optional)</label><textarea id="scStrNotes"></textarea></div>
     </section>
 
@@ -278,14 +281,23 @@
   <div class="toast hidden" id="toast"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-  <script src="js/config.js?v=2026-10-30-1"></script>
-  <script src="js/store.js?v=2026-10-30-1"></script>
-  <script src="js/api.js?v=2026-10-30-1"></script>
-  <script src="js/outbox.js?v=2026-10-30-1"></script>
-  <script src="js/forms.js?v=2026-10-30-1"></script>
-  <script src="js/shell.js?v=2026-10-30-1"></script>
-  <script src="js/scat-packet.js?v=2026-10-30-1"></script>
-  <script src="js/scat-ui.js?v=2026-10-30-1"></script>
+  <script src="js/config.js?v=2026-10-30-2"></script>
+  <script src="js/store.js?v=2026-10-30-2"></script>
+  <script src="js/api.js?v=2026-10-30-2"></script>
+  <script src="js/outbox.js?v=2026-10-30-2"></script>
+  <script src="js/forms.js?v=2026-10-30-2"></script>
+  <script src="js/shell.js?v=2026-10-30-2"></script>
+  <!-- Reference photos (NOAA job aid): one sheet shared by every tile screen; see ref/README.md -->
+  <div class="refsheet hidden" id="scRefSheet">
+    <div class="refpanel">
+      <div class="refhead"><div class="reftitle" id="scRefTitle"></div><button class="btn btn-ghost" type="button" id="scRefClose">Close</button></div>
+      <div class="reflist" id="scRefList"></div>
+      <div class="refcredit" id="scRefCredit"></div>
+    </div>
+  </div>
+  <script src="js/scat-ref.js?v=2026-10-30-2"></script>
+  <script src="js/scat-packet.js?v=2026-10-30-2"></script>
+  <script src="js/scat-ui.js?v=2026-10-30-2"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
