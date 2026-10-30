@@ -6,7 +6,10 @@
  * ones that catalogue the record (segment or location; a zone's bank and start point).
  * Skipped screens are recorded as skipped (fields.skipped), not as empty.
  *
- * Phases: 'recon' (a triage stop) and 'survey' (the SOS survey: setup, extent, bank
+ * Phases: 'recon' (a triage stop), 'survey' (the SOS survey) and 'endpoint' (the Endpoint
+ * Review, 2026-10-30: built per segment from the packet in scat-packet.js, one screen per
+ * criterion, surveyed zone and surveyed pit, ending in the one decision that cannot be skipped).
+ * Survey: 'survey' (the SOS survey: setup, extent, bank
  * character, operations, zones, pits, photos, summary, STR, review). The phase is a sticky
  * choice on the phone (wri_scat_phase); the chooser only shows until it is made. Zones and
  * pits are repeatable items with their own short hallways; they go to the server inside the
@@ -125,6 +128,61 @@
   ];
   var ITEM_HALLWAY = { zones: ZONE, pits: PIT };
 
+  // ---------- Endpoint Review: head and tail are fixed, the middle is built per segment ----------
+  var EP_HEAD = [
+    { key: 'where', section: 'where', required: true },
+    { key: 'recommended', section: 'recommended' },
+    { key: 'water_level', section: 'tiles', q: 'Water level today?', list: 'water_level', field: 'water_level', single: true, sticky: true, tones: { low: 'blue', normal: 'green', high: 'amber', flood: 'red' } },
+    { key: 'water_trend', section: 'tiles', q: 'Is it rising or falling?', list: 'water_trend', field: 'water_trend', single: true, sticky: true, tones: { rising: 'amber', steady: 'blue', falling: 'blue' } }
+  ];
+  var EP_TAIL = [
+    { key: 'new_zones', section: 'items', items: 'zones', label: 'new oiled zone', q: 'Oil somewhere new?', sub: 'Oil that is not in a surveyed zone (moved by the water, or missed): add it as a zone of its own. Then Next.' },
+    { key: 'new_pits', section: 'items', items: 'pits', label: 'pit', q: 'Pits', sub: 'Pits you dug again are listed. Add any new pit. Then Next.' },
+    { key: 'decision', section: 'decision', required: true },
+    { key: 'photos', section: 'photos' },
+    { key: 'notes', section: 'notes' },
+    { key: 'review', section: 'review' }
+  ];
+  function buildEndpoint() {
+    var pk = packet(), b = pkBasis(pk), bf = (b && b.fields) || {};
+    F.water_body = bf.water_body || F.water_body || '';   // so the zone hallway's flowing-water questions behave as in the survey
+    var head = EP_HEAD.map(function (x) { return Object.assign({}, x); });
+    var stage = b ? 'At the survey (' + fmtDate(b.captured_at) + '): ' + [bf.water_level && label('water_level', bf.water_level), bf.water_trend && label('water_trend', bf.water_trend)].filter(Boolean).join(', ') : '';
+    head[2].sub = stage || 'Bank-zone criteria read differently at low flow.'; head[3].sub = stage;
+    var crits = criteriaFor(pk);
+    var mid = crits.map(function (c, i) { return { key: 'crit:' + c.criterion_id, section: 'crit', crit: c, n: i, of: crits.length }; });
+    var zones = basisZones(pk).map(function (z, i) { return { key: 'rzone:' + z.uuid, section: 'rzone', zone: z, n: i }; });
+    var pits = basisPits(pk).map(function (x, i) { return { key: 'rpit:' + x.uuid, section: 'rpit', pit: x, n: i }; });
+    F._screens = head.concat(mid, zones, pits, EP_TAIL);
+    F._screensSeg = F.segment; F._screensPk = pk ? pk.fetched_at || 1 : 0;
+    return F._screens;
+  }
+  function packet() { return (F.segment && window.ScatPacket && ScatPacket.segment(F.segment)) || null; }
+  function pkStr(pk) { return (pk && pk.str) || null; }
+  function pkBasis(pk) { return pk ? (pk.basis_survey || pk.latest_survey || null) : null; }
+  function basisZones(pk) { var b = pkBasis(pk); return (b && b.children && b.children.zone) || []; }
+  function basisPits(pk) { var b = pkBasis(pk); return (b && b.children && b.children.pit) || []; }
+  function criteriaRows() { var c = window.ScatPacket && ScatPacket.current(); return (c && c.criteria && c.criteria.length ? c.criteria : (cfg && cfg.criteria)) || []; }
+  function epShoreCode(pk) { var b = pkBasis(pk), bf = (b && b.fields) || {}, z = basisZones(pk)[0]; return bf.bank_type_primary || (z && z.fields && z.fields.substrate_type) || ''; }
+  function epOilCat(pk) { var st = pkStr(pk), b = pkBasis(pk); return (st && st.fields && st.fields.oil_category) || (b && b.fields && b.fields.oil_category) || ''; }
+  /** The criteria that apply to this segment: the server's precedence rule, copied (Packet.js scatSelectCriteria_). */
+  function criteriaFor(pk) {
+    var rows = selectCriteria(criteriaRows(), epShoreCode(pk), epOilCat(pk));
+    if (!basisPits(pk).length) rows = rows.filter(function (r) { return r.group !== 'subsurface'; });   // no pits surveyed: nothing to dig against
+    return rows;
+  }
+  function selectCriteria(rows, shoreType, oilCategory) {
+    var fits = function (pattern, value) { return pattern === '*' || (!!value && pattern === String(value)); };
+    var best = {};
+    rows.forEach(function (r) {
+      if (!fits(r.shore_type_code, shoreType) || !fits(r.oil_category, oilCategory)) return;
+      var k = r.group + '|' + r.bank_zone;
+      if (!best[k] || r.specificity > best[k].specificity) best[k] = r;
+    });
+    return Object.keys(best).map(function (k) { return best[k]; }).sort(function (a, b) { return (a.sort - b.sort) || a.criterion_id.localeCompare(b.criterion_id); });
+  }
+  function fmtDate(iso) { var d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }); }
+
   // ---------- state ----------
   function sticky() { try { return JSON.parse(A.lsGet(STICKY_KEY) || '{}'); } catch (e) { return {}; } }
   function fresh() {
@@ -134,6 +192,11 @@
     var p = F ? F.phase : phase();   // '' until the phone has chosen: the chooser screen shows
     if (p === 'recon') {
       Object.assign(f, { phase: 'recon', oil: '', extent: '', trend: '', access: '', hazards: [], hazardNote: '', priority: '' });
+    } else if (p === 'endpoint') {
+      Object.assign(f, { phase: 'endpoint', water_body: '', water_level: '', water_trend: '', team_id: '', team_members: '',
+        items: {}, zone_reviews: {}, pit_again: {}, zones: [], pits: [],
+        decision: '', what_is_left: '', followup_methods: null, priority: '', another_look_condition: '', another_look_date: '' });
+      Object.keys(st).forEach(function (k) { if (k in f && k !== 'water_body') f[k] = st[k]; });
     } else {
       Object.assign(f, { phase: p === 'survey' ? 'survey' : '', survey_kind: '', water_body: '', water_level: '', water_trend: '', survey_method: [], weather: [], team_id: '', team_members: '',
         length_surveyed_m: null, whole_segment: '', end_lat: null, end_lon: null,
@@ -147,7 +210,12 @@
     return f;
   }
   function phase() { return A.lsGet(PHASE_KEY) || ''; }
-  function screens() { return F.sub ? ITEM_HALLWAY[F.sub.items] : (F.phase === 'recon' ? RECON : SURVEY); }
+  function screens() {
+    if (F.sub) return ITEM_HALLWAY[F.sub.items];
+    if (F.phase === 'recon') return RECON;
+    if (F.phase === 'endpoint') { var pk = packet(); return F._screens && F._screensSeg === F.segment && F._screensPk === (pk ? pk.fetched_at || 1 : 0) ? F._screens : buildEndpoint(); }
+    return SURVEY;
+  }
   function data() { return F.sub ? F.sub.data : F; }
   function cur() { return screens()[F.sub ? F.sub.i : F.i]; }
   function idx() { return F.sub ? F.sub.i : F.i; }
@@ -222,6 +290,14 @@
     var q = $('scSegSearch').value.trim().toLowerCase();
     var inc = S.incident && S.incident.incident_id;
     var all = segments().filter(function (s) { return !s.incident_id || !inc || String(s.incident_id) === String(inc); });
+    var ep = F.phase === 'endpoint' && window.ScatPacket;
+    if (ep && !F._allSegs) {   // only segments with a survey or an STR on this phone; packet-only ids (typed in a survey) are included
+      var ids = ScatPacket.reviewableIds(), have = {};
+      all.forEach(function (s) { have[s.segment_id] = 1; });
+      all = all.filter(function (s) { return ids.indexOf(s.segment_id) >= 0; })
+        .concat(ids.filter(function (id) { return !have[id]; }).map(function (id) { return { segment_id: id, label: '', lat: null, lon: null }; }));
+    }
+    if (ep && F.lat == null) all.sort(function (a, b) { return a.segment_id.localeCompare(b.segment_id); });   // no fix yet: by id
     var hits = q ? all.filter(function (s) { return (s.segment_id + ' ' + (s.label || '')).toLowerCase().indexOf(q) >= 0; }) : all.slice();
     // nearest first when the phone has a fix and the segments carry a point (Caleb's layer, or lat/lon in the tab)
     if (F.lat != null) {
@@ -232,14 +308,36 @@
     $('scSegList').innerHTML = hits.map(function (s) {
       var on = s.segment_id === F.segment;
       var far = s._d != null && F.lat != null ? (s._d < 950 ? Math.round(s._d / 10) * 10 + ' m away' : (s._d / 1000).toFixed(1) + ' km away') : '';
+      var sub = ep ? [epSegSub(s.segment_id), far].filter(Boolean).join(' · ') : [s.label || '', far].filter(Boolean).join(' · ');
       return '<button type="button" class="tile seg' + (on ? ' sel' : '') + '" data-id="' + A.esc(s.segment_id) + '"><span>' + A.esc(s.segment_id) +
-        '<small>' + A.esc([s.label || '', far].filter(Boolean).join(' · ')) + '</small></span>' + (on ? '<span class="ck">✓</span>' : '') + '</button>';
+        '<small>' + A.esc(sub) + '</small></span>' + (on ? '<span class="ck">✓</span>' : '') + '</button>';
     }).join('') || (all.length ? '<div class="hint">No segment matches. Keep typing, or use what you typed.</div>'
+                   : ep && !F._allSegs ? '<div class="hint">No surveyed segments on this phone yet. Pull the packet above, or show all segments.</div>'
                                 : '<div class="hint">No segment list yet: open this tab once with signal, or type the segment ID.</div>');
+    $('scSegAll').classList.toggle('hidden', !ep);
+    $('scSegAll').textContent = F._allSegs ? 'Show only surveyed segments' : 'Show all segments';
     $('scSegTyped').classList.toggle('hidden', !q || hits.some(function (s) { return s.segment_id.toLowerCase() === q; }));
     $('scSegPicked').classList.toggle('hidden', !F.segment || hits.some(function (s) { return s.segment_id === F.segment; }));
     $('scSegPicked').innerHTML = F.segment ? 'Segment <b>' + A.esc(F.segment) + '</b>' + (F.segmentLabel ? ' · ' + A.esc(F.segmentLabel) : '') +
       ' <button class="link" type="button" id="scSegClear">change</button>' : '';
+  }
+  /** Picker subtext in the Endpoint phase: status, when surveyed, the STR revision, the last review. */
+  function epSegSub(id) {
+    var pk = ScatPacket.segment(id), st = ScatPacket.status(id), b = pkBasis(pk), parts = [];
+    parts.push(segStatusLabel(id));
+    if (b) parts.push('surveyed ' + fmtDate(b.captured_at));
+    if (pk && pk.str) parts.push('STR rev ' + pk.str.str_revision);
+    var rv = pk && pk.reviews && pk.reviews[0];
+    if (rv) parts.push('last review: ' + label('endpoint_decision', (rv.fields || {}).decision).toLowerCase() + ' ' + fmtDate(rv.captured_at));
+    return parts.join(' · ') || 'no survey on this phone';
+  }
+  /** The coordinator's status when set; otherwise derived from what is on the phone, marked as such. */
+  function segStatusLabel(id) {
+    var st = ScatPacket.status(id), pk = ScatPacket.segment(id);
+    if (st && st.segment_status && st.segment_status !== 'unsurveyed') return label('segment_status', st.segment_status);
+    if (pk && pk.str) return 'Treatment recommended (not yet set by the coordinator)';
+    if (pkBasis(pk)) return 'Surveyed (not yet set by the coordinator)';
+    return label('segment_status', 'unsurveyed');
   }
   function pickSegment(id) {
     var s = segments().filter(function (x) { return x.segment_id === id; })[0];
@@ -250,6 +348,10 @@
     renderWhere();
   }
   function renderWhere() {
+    $('scWhereQ').innerHTML = F.phase === 'endpoint' ? 'Which segment are you reviewing?<small>Use your location to sort the list, then tap the segment.</small>'
+                                                     : 'Where are you?<small>Use your location, then tap your segment. One is enough.</small>';
+    $('scPacketBar').classList.toggle('hidden', F.phase !== 'endpoint');
+    if (F.phase === 'endpoint') { renderPacketBar(); if (S.incident) ScatPacket.ensure(S.incident.incident_id).then(function () { renderPacketBar(); }); }
     renderSegments();
     $('scBankBox').classList.toggle('hidden', F.phase !== 'recon');
     tiles($('scBank'), list('bank_side'), F.bank, false, null, 'blue');
@@ -347,7 +449,7 @@
     $('scItemsList').innerHTML = arr.map(function (it, i) {
       return '<button type="button" class="tile seg t-blue" data-i="' + i + '"><span>' + A.esc(itemTitle(s.items, it, i)) + '<small>Tap to edit</small></span></button>';
     }).join('') || '<div class="hint">None yet.</div>';
-    $('scItemsAdd').textContent = '+ Add ' + (arr.length ? 'another ' : 'an ') + s.label;
+    $('scItemsAdd').textContent = '+ Add ' + (arr.length ? 'another ' : (/^[aeiou]/i.test(s.label) ? 'an ' : 'a ')) + s.label;
   }
   function openItem(items, i) {
     var arr = F[items];
@@ -427,14 +529,219 @@
     $('scStrNotes').value = F.str.rationale || '';
   }
 
+  // ---------- Endpoint Review screens ----------
+  function renderPacketBar() {
+    var el = $('scPacketBar'), p = window.ScatPacket && ScatPacket.current(), err = window.ScatPacket && ScatPacket.lastError();
+    var n = p ? Object.keys(p.segments || {}).length : 0, warn = p && p.criteria_warnings && p.criteria_warnings.length;
+    var line = ScatPacket.isSyncing() ? 'Pulling the segment packet…'
+      : p ? '<b>Segment packet:</b> ' + n + ' segment' + (n === 1 ? '' : 's') + ', ' + (p.criteria || []).length + ' criteria, synced ' + fmtDate(new Date(p.synced_at || 0).toISOString())
+      : '<b>No segment packet on this phone yet.</b> It holds the surveys, treatment recommendations and criteria for this incident.';
+    if (err) line += '<div style="color:#ff9a9d;margin-top:4px">' + A.esc(err.message || String(err)) + '</div>';
+    if (warn) line += '<div style="color:#ffd27a;margin-top:4px">⚠ ' + warn + ' criteria tie in the config; tell the SCAT Coordinator.</div>';
+    el.innerHTML = line + ' <button class="link" id="scPacketSync" type="button"' + (ScatPacket.isSyncing() ? ' disabled' : '') + '>' + (p ? 'Sync now' : 'Pull it now') + '</button>';
+  }
+  function syncPacket() {
+    if (!S.incident) { A.toast('Pick the incident at the top first.'); return; }
+    renderPacketBar();
+    ScatPacket.sync(S.incident.incident_id).then(function () { A.toast('Segment packet updated.'); }, function (e) {
+      if (e.code === 'pin_missing') { var pin = $('scPinInput'); window.scrollTo(0, 0); if (pin) pin.focus(); }
+    }).then(function () { renderPacketBar(); renderSegments(); });
+  }
+  function thumbsHtml(ids) { return (ids || []).slice(0, 3).map(function (id) { return '<img class="th" data-file="' + A.esc(id) + '" alt="">'; }).join(''); }
+  function loadThumbs(container) {
+    [].forEach.call(container.querySelectorAll('img.th[data-file]:not([src])'), function (img) {
+      ScatPacket.thumb(img.dataset.file).then(function (t) { img.src = 'data:' + t.mime + ';base64,' + t.base64; }, function () { img.classList.add('miss'); });
+    });
+  }
+  function zoneSummary(z) {
+    var f = (z && z.fields) || {};
+    return [f.bank_zone && label('bank_zone', f.bank_zone), f.bank_side && label('bank_side', f.bank_side).split(' (')[0],
+      f.distribution_band ? label('distribution_band', f.distribution_band).split(':')[0] : (f.count_per_m2 != null ? f.count_per_m2 + '/m²' : ''),
+      f.thickness && label('thickness', f.thickness).split(':')[0], (f.oil_character || []).map(function (c) { return label('oil_character', c); }).join(', '),
+      f.substrate_type && ('on ' + shoreLabel(f.substrate_type).toLowerCase()), f.length_m != null && f.length_m + ' m long'].filter(Boolean).join(' · ');
+  }
+  function pitSummary(f) {
+    f = f || {};
+    return [f.bank_zone && label('bank_zone', f.bank_zone), f.pit_depth_cm != null && f.pit_depth_cm + ' cm deep',
+      f.oiled_top_cm != null && f.oiled_bottom_cm != null && ('oil ' + f.oiled_top_cm + '–' + f.oiled_bottom_cm + ' cm'),
+      f.subsurface_character && label('subsurface_character', f.subsurface_character).split(':')[0], f.sheen_color && f.sheen_color !== 'none' && (f.sheen_color + ' sheen')].filter(Boolean).join(' · ');
+  }
+  function renderRecommended() {
+    var pk = packet(), st = pkStr(pk), b = pkBasis(pk), html = '';
+    var latest = pk && pk.latest_survey && b && pk.latest_survey.uuid !== b.uuid ? pk.latest_survey : null;
+    var status = window.ScatPacket && ScatPacket.status(F.segment);
+    if (!pk) {
+      html = '<div class="pk"><div class="pk-h">Nothing on this phone for ' + A.esc(F.segment) + '</div><div class="pk-note">No survey or treatment recommendation has been pulled down for this segment. Go back and pull the packet (needs signal and the SCAT PIN), or carry on: the generic criteria still apply.</div></div>';
+    } else {
+      html += '<div class="pk-meta" style="margin-bottom:8px">Segment status: <b>' + A.esc(segStatusLabel(F.segment)) + '</b></div>';
+      if (st) {
+        var sf = st.fields || {};
+        html += '<div class="pk"><div class="pk-h">Treatment recommendation <span class="pk-tag">rev ' + st.str_revision + '</span></div>' +
+          '<div class="pk-big">' + ((sf.recommended || []).length ? (sf.recommended || []).map(A.esc).join(' · ') : 'No method recorded') + '</div>' +
+          (sf.rationale ? '<div class="pk-note">' + A.esc(sf.rationale) + '</div>' : '') +
+          '<div class="pk-meta">' + [sf.oil_category && label('oil_category', sf.oil_category), b && ('written from the survey of ' + fmtDate(b.captured_at)), st.team && ('by ' + st.team)].filter(Boolean).join(' · ') + '</div></div>';
+      } else {
+        html += '<div class="pk"><div class="pk-h">No treatment recommendation</div><div class="pk-note">The survey has no STR yet. Review against the criteria alone.</div></div>';
+      }
+      if (b) {
+        var bf = b.fields || {}, zs = basisZones(pk), ps = basisPits(pk);
+        html += '<div class="pk"><div class="pk-h">Survey ' + fmtDate(b.captured_at) + (bf.survey_kind ? ' <span class="pk-tag grey">' + A.esc(label('survey_kind', bf.survey_kind).split(':')[0]) + '</span>' : '') + '</div>' +
+          '<div class="pk-meta">' + [b.team && ('team ' + b.team), bf.bank_type_primary && shoreLabel(bf.bank_type_primary), bf.water_level && ('water ' + label('water_level', bf.water_level).split(':')[0].toLowerCase()), bf.water_trend && label('water_trend', bf.water_trend).toLowerCase(),
+            bf.whole_segment === 'yes' ? 'whole segment' : (bf.length_surveyed_m ? bf.length_surveyed_m + ' m surveyed' : '')].filter(Boolean).join(' · ') + '</div>' +
+          (b.attachments && b.attachments.length ? '<div class="thumbs-row">' + thumbsHtml(b.attachments) + '</div>' : '') +
+          (zs.length ? zs.map(function (z) { return '<div class="pk-zone"><b>Zone ' + A.esc((z.fields || {}).zone_id || '') + '</b>' + A.esc(zoneSummary(z)) + '</div>'; }).join('') : '<div class="pk-zone"><b>No oiled zones recorded</b></div>') +
+          (ps.length ? '<div class="pk-zone"><b>' + ps.length + ' pit' + (ps.length === 1 ? '' : 's') + '</b>' + ps.map(function (x) { return A.esc(((x.fields || {}).pit_id || '') + ' ' + pitSummary(x.fields)); }).join('<br>') + '</div>' : '') +
+          '</div>';
+      }
+      if (pk.recon && pk.recon.attachments && pk.recon.attachments.length) {
+        html += '<div class="pk"><div class="pk-h">Recon photos ' + fmtDate(pk.recon.captured_at) + '</div><div class="pk-meta">' +
+          [(pk.recon.fields || {}).oil_present && ('oil: ' + label('oil_present', pk.recon.fields.oil_present).split(':')[0].toLowerCase()), (pk.recon.fields || {}).oil_extent && label('oil_extent', pk.recon.fields.oil_extent).split(':')[0]].filter(Boolean).join(' · ') +
+          '</div><div class="thumbs-row">' + thumbsHtml(pk.recon.attachments) + '</div></div>';
+      }
+      if (latest) html += '<div class="pk"><div class="pk-h">Later survey ' + fmtDate(latest.captured_at) + '</div><div class="pk-meta">' + [((latest.fields || {}).survey_kind) && label('survey_kind', latest.fields.survey_kind), ((latest.children || {}).zone || []).length + ' zone(s)'].filter(Boolean).join(' · ') + '. The criteria below are against the STR\'s survey; keep this one in mind.</div></div>';
+      if (pk.reviews && pk.reviews.length) {
+        var rv = pk.reviews[0], rf = rv.fields || {};
+        html += '<div class="pk"><div class="pk-h">Last review ' + fmtDate(rv.captured_at) + ' <span class="pk-tag ' + ({ met: 'green', not_met: 'red', another_look: 'amber' }[rf.decision] || 'grey') + '">' + A.esc(label('endpoint_decision', rf.decision)) + '</span></div>' +
+          (rf.what_is_left ? '<div class="pk-note">' + A.esc(rf.what_is_left) + '</div>' : '') + (rv.team ? '<div class="pk-meta">by ' + A.esc(rv.team) + '</div>' : '') + '</div>';
+      }
+    }
+    $('scRecBody').innerHTML = html;
+    loadThumbs($('scRecBody'));
+  }
+  function critItem(c) {
+    return F.items[c.criterion_id] = F.items[c.criterion_id] || { criterion_id: c.criterion_id, group: c.group, criterion: c.criterion, method: c.method, placeholder: !!c.placeholder, answer: '', bank_zone: '', oil_extent: '', not_checked_reason: '' };
+  }
+  function photosTagged(tag) { return F.photos.filter(function (p) { return p.tag === tag; }).length; }
+  function renderCrit(s) {
+    var c = s.crit, it = critItem(c);
+    $('scCritN').textContent = 'Criterion ' + (s.n + 1) + ' of ' + s.of;
+    $('scCritQ').innerHTML = A.esc(c.criterion) + (c.placeholder ? ' <span class="pk-tag amber">placeholder</span>' : '') + (c.method ? '<small>How to check: ' + A.esc(c.method) + '</small>' : '');
+    tiles($('scCritTiles'), list('endpoint_answer'), it.answer, false, { meets: 'green', not_met: 'red', not_checked: 'amber' });
+    $('scCritNotMet').classList.toggle('hidden', it.answer !== 'not_met');
+    if (it.answer === 'not_met') {
+      tiles($('scCritWhere'), list('bank_zone'), it.bank_zone, false, null, 'blue');
+      tiles($('scCritHow'), list('oil_extent'), it.oil_extent, false, { trace: 'green', sporadic: 'amber', patchy: 'amber', broken: 'orange', continuous: 'red' });
+    }
+    $('scCritWhy').classList.toggle('hidden', it.answer !== 'not_checked');
+    if (it.answer === 'not_checked') tiles($('scCritReason'), list('not_checked_reason'), it.not_checked_reason, false, null, 'amber');
+    var n = photosTagged('crit:' + c.criterion_id);
+    $('scCritPhotoN').textContent = n ? n + ' photo' + (n === 1 ? '' : 's') + ' of this' : '';
+  }
+  function onCritTile(which, code) {
+    var s = cur(); if (s.section !== 'crit') return;
+    if (Date.now() - lastGo < 300) return;
+    var it = critItem(s.crit);
+    if (which === 'answer') {
+      it.answer = code; delete F.skipped[s.key];
+      renderCrit(s);
+      if (code === 'meets') { clearTimeout(advancing); advancing = setTimeout(function () { go(idx() + 1); }, 180); }
+      return;
+    }
+    it[which] = it[which] === code ? '' : code;
+    renderCrit(s);
+  }
+  function zoneReview(z) {
+    var f = z.fields || {};
+    return F.zone_reviews[z.uuid] = F.zone_reviews[z.uuid] || { review_of: z.uuid, zone_id: f.zone_id || '', bank_side: f.bank_side || '', bank_zone: f.bank_zone || '',
+      start_lat: f.start_lat != null ? f.start_lat : null, start_lon: f.start_lon != null ? f.start_lon : null, result: '', thickness: '', oil_character: [], notes: '' };
+  }
+  function renderRZone(s) {
+    var z = s.zone, zr = zoneReview(z), pk = packet(), b = pkBasis(pk);
+    $('scRZq').innerHTML = 'Zone ' + A.esc((z.fields || {}).zone_id || String(s.n + 1)) + ' now?<small>Surveyed ' + A.esc(b ? fmtDate(b.captured_at) : '') + ': ' + A.esc(zoneSummary(z) || 'no detail recorded') + '</small>';
+    $('scRZThumbs').innerHTML = thumbsHtml(z.attachments && z.attachments.length ? z.attachments : []);
+    loadThumbs($('scRZThumbs'));
+    tiles($('scRZTiles'), list('review_zone_result'), zr.result, false, { clean: 'green', residual: 'red', not_visited: 'grey' });
+    $('scRZResidual').classList.toggle('hidden', zr.result !== 'residual');
+    if (zr.result === 'residual') {
+      tiles($('scRZThick'), list('thickness'), zr.thickness, false, { thick: 'red', cover: 'orange', coat: 'amber', stain: 'blue', film: 'green' });
+      tiles($('scRZChar'), list('oil_character'), zr.oil_character, true, null, 'red');
+    }
+    var n = photosTagged('zone:' + z.uuid);
+    $('scRZPhotoN').textContent = n ? n + ' photo' + (n === 1 ? '' : 's') + ' of this zone' : '';
+  }
+  function onRZoneTile(which, code) {
+    var s = cur(); if (s.section !== 'rzone') return;
+    if (Date.now() - lastGo < 300) return;
+    var zr = zoneReview(s.zone);
+    if (which === 'result') {
+      zr.result = code; delete F.skipped[s.key]; renderRZone(s);
+      if (code !== 'residual') { clearTimeout(advancing); advancing = setTimeout(function () { go(idx() + 1); }, 180); }
+      return;
+    }
+    if (which === 'oil_character') { var i = zr.oil_character.indexOf(code); if (i >= 0) zr.oil_character.splice(i, 1); else zr.oil_character.push(code); }
+    else zr[which] = zr[which] === code ? '' : code;
+    renderRZone(s);
+  }
+  function myPitFor(uuid) { return F.pits.filter(function (x) { return x.review_of === uuid; })[0] || null; }
+  function renderRPit(s) {
+    var x = s.pit, f = x.fields || {}, mine = myPitFor(x.uuid), ans = F.pit_again[x.uuid] || '';
+    $('scRPq').innerHTML = 'Dig again at pit ' + A.esc(f.pit_id || String(s.n + 1)) + '?<small>Surveyed: ' + A.esc(pitSummary(f) || 'no detail recorded') + '</small>';
+    tiles($('scRPTiles'), [{ code: 'yes', label: 'Yes, dig it again' }, { code: 'no', label: 'No' }], ans, false, { yes: 'blue', no: 'grey' });
+    $('scRPDone').innerHTML = mine ? '<div class="picked">Dug: ' + A.esc(itemTitle('pits', mine, F.pits.indexOf(mine))) + ' <button class="link" type="button" id="scRPEdit">edit</button></div>' : '';
+  }
+  function onRPitTile(code) {
+    var s = cur(); if (s.section !== 'rpit') return;
+    if (Date.now() - lastGo < 300) return;
+    var x = s.pit, f = x.fields || {};
+    F.pit_again[x.uuid] = code; delete F.skipped[s.key];
+    if (code === 'no') { renderRPit(s); clearTimeout(advancing); advancing = setTimeout(function () { go(idx() + 1); }, 180); return; }
+    var mine = myPitFor(x.uuid);
+    if (!mine) {   // prefilled from the survey's pit so the record is comparable; the reviewer changes what differs
+      F.pits.push({ review_of: x.uuid, zone_ref: f.zone_ref || '', bank_zone: f.bank_zone || '', substrate_surface: f.substrate_surface || '',
+        start_lat: f.start_lat != null ? f.start_lat : (f.lat != null ? f.lat : null), start_lon: f.start_lon != null ? f.start_lon : (f.lon != null ? f.lon : null),
+        pit_depth_cm: f.pit_depth_cm != null ? f.pit_depth_cm : null, oiled_top_cm: null, oiled_bottom_cm: null, notes: '' });
+      mine = F.pits[F.pits.length - 1];
+    }
+    openItem('pits', F.pits.indexOf(mine));
+  }
+  function strMethods() { var st = pkStr(packet()); return (st && st.fields && st.fields.recommended) || []; }
+  function renderDecision() {
+    tiles($('scDecTiles'), list('endpoint_decision'), F.decision, false, { met: 'green', not_met: 'red', another_look: 'amber' });
+    $('scDecNotMet').classList.toggle('hidden', F.decision !== 'not_met');
+    if (F.decision === 'not_met') {
+      $('scWhatLeft').value = F.what_is_left;
+      var ms = strMethods(), picked = F.followup_methods === null ? ms.slice() : F.followup_methods;
+      var opts = ms.map(function (m) { return { code: m, label: m }; });
+      (picked || []).forEach(function (m) { if (ms.indexOf(m) < 0) opts.push({ code: m, label: m }); });
+      if (opts.length) tiles($('scDecMethods'), opts, picked, true, null, 'blue');
+      else $('scDecMethods').innerHTML = '<div class="hint">No STR methods on this phone for this segment. Say what is needed in the box above.</div>';
+      var same = ms.length && (picked || []).length === ms.length && ms.every(function (m) { return picked.indexOf(m) >= 0; });
+      $('scDecSame').textContent = ms.length ? (same ? 'Same as the STR. Tap to change.' : 'Changed from the STR.') : '';
+      tiles($('scDecPriority'), list('priority'), F.priority, false, { high: 'red', medium: 'amber', low: 'blue', none: 'grey' });
+    }
+    $('scDecLook').classList.toggle('hidden', F.decision !== 'another_look');
+    if (F.decision === 'another_look') {
+      tiles($('scLookTiles'), list('another_look_condition'), F.another_look_condition, false, null, 'amber');
+      $('scLookDateBox').classList.toggle('hidden', F.another_look_condition !== 'date');
+      $('scLookDate').value = F.another_look_date || '';
+    }
+  }
+  function onDecisionTile(which, code) {
+    if (cur().section !== 'decision') return;
+    if (Date.now() - lastGo < 300) return;
+    if (which === 'decision') {
+      F.decision = code; delete F.skipped.decision; renderDecision();
+      if (code === 'met') { clearTimeout(advancing); advancing = setTimeout(function () { go(idx() + 1); }, 180); }
+      return;
+    }
+    if (which === 'followup_methods') { var arr = F.followup_methods === null ? strMethods().slice() : F.followup_methods; var i = arr.indexOf(code); if (i >= 0) arr.splice(i, 1); else arr.push(code); F.followup_methods = arr; }
+    else F[which] = F[which] === code ? '' : code;
+    renderDecision();
+  }
+
   // ---------- hallway ----------
   function check1() {
     if (!S.incident) return 'Pick the incident at the top first.';
+    if (F.phase === 'endpoint') return F.segment ? '' : 'Tap the segment you are reviewing.';
     if (!F.segment && F.lat == null) return 'Tap a segment or use your location. Either is enough.';
     return '';
   }
   function hasData(s, d) {
-    if (s.section === 'where') return true;
+    if (s.section === 'where' || s.section === 'recommended') return true;
+    if (s.section === 'crit') { var ci = d.items[s.crit.criterion_id]; return !!(ci && ci.answer); }
+    if (s.section === 'rzone') { var zr = d.zone_reviews[s.zone.uuid]; return !!(zr && zr.result); }
+    if (s.section === 'rpit') return !!d.pit_again[s.pit.uuid];
+    if (s.section === 'decision') return !!d.decision;
     if (s.section === 'team') return !!(d.team_id || d.team_members);
     if (s.section === 'extent') return d.whole_segment === 'yes' || (d.length_surveyed_m != null && d.length_surveyed_m !== '') || d.end_lat != null;
     if (s.section === 'zonegps') return d.start_lat != null;
@@ -476,7 +783,7 @@
   function next() {
     var s = cur(), d = data(), skipped = F.sub ? F.sub.skipped : F.skipped;
     if (s.section === 'where') { var m = check1(); if (m) { A.toast(m); return; } }
-    if (s.required && !hasData(s, d)) { A.toast(s.section === 'zonegps' ? 'Tap Use My Location: a ' + (F.sub.items === 'pits' ? 'pit' : 'zone') + ' needs a point.' : 'Tap an answer.'); return; }
+    if (s.required && !hasData(s, d)) { A.toast(s.section === 'zonegps' ? 'Tap Use My Location: a ' + (F.sub.items === 'pits' ? 'pit' : 'zone') + ' needs a point.' : s.section === 'decision' ? 'The decision is the record: tap one of the three.' : 'Tap an answer.'); return; }
     if (s.single && !s.preset && !hasData(s, d)) { A.toast('Tap an answer, or Skip.'); return; }
     // Next on an empty optional screen counts as a skip: "skipped, not empty" holds either way
     if (hasData(s, d)) delete skipped[s.key]; else if (!s.required && s.key !== 'review' && s.section !== 'where') skipped[s.key] = true;
@@ -494,7 +801,7 @@
     if (!F) return;
     var s = cur();
     if (!F.phase) { showPhase(); return; }
-    $('scPhaseName').textContent = F.phase === 'recon' ? 'Recon SCAT' : 'SCAT Survey';
+    $('scPhaseName').textContent = F.phase === 'recon' ? 'Recon SCAT' : F.phase === 'endpoint' ? 'Endpoint Review' : 'SCAT Survey';
     if (s.section === 'where') renderWhere();
     if (s.section === 'tiles') renderTileScreen(s);
     if (s.section === 'team') renderTeam();
@@ -504,6 +811,11 @@
     if (s.section === 'itemnotes') { $('scItemNotes').value = data().notes || ''; $('scItemNotesQ').textContent = F.sub.items === 'pits' ? 'Anything else about this pit?' : 'Anything else about this zone?'; }
     if (s.section === 'photos') renderPhotos();
     if (s.section === 'str') renderStr();
+    if (s.section === 'recommended') renderRecommended();
+    if (s.section === 'crit') renderCrit(s);
+    if (s.section === 'rzone') renderRZone(s);
+    if (s.section === 'rpit') renderRPit(s);
+    if (s.section === 'decision') renderDecision();
     if (s.section === 'notes') { $('scNotes').value = F.notes; $('scTeam').value = F.team; $('scName').value = F.name; $('scOrg').value = F.org; }
     if (s.section === 'review') renderReview();
   }
@@ -520,15 +832,18 @@
   // ---------- photos ----------
   function addPhotos(input) {
     var files = [].slice.call(input.files || []); input.value = '';
+    if (!files.length) { F._photoTag = ''; return; }
     var room = CONFIG.MAX_PHOTOS - F.photos.length;
     if (files.length > room) A.toast('Up to ' + CONFIG.MAX_PHOTOS + ' photos per record. Save another record for more.');
     files.slice(0, Math.max(0, room)).reduce(function (p, f) {
       return p.then(function () { return A.downscale(f); }).then(function (blob) {
         // where and when the photo was taken rides along as the attachment's description
-        var meta = JSON.stringify({ t: f.lastModified || Date.now(), lat: F.lat, lon: F.lon, segment: F.segment, phase: F.phase });
-        F.photos.push({ blob: blob, name: f.name || 'photo.jpg', url: URL.createObjectURL(blob), meta: meta }); renderPhotos();
+        var tag = F._photoTag || '';
+        var meta = JSON.stringify({ t: f.lastModified || Date.now(), lat: F.lat, lon: F.lon, segment: F.segment, phase: F.phase, tag: tag });
+        F.photos.push({ blob: blob, name: f.name || 'photo.jpg', url: URL.createObjectURL(blob), meta: meta, tag: tag }); renderPhotos();
+        if (tag) { A.toast('Photo added.'); render(); }
       }).catch(function (e) { A.toast(e.message); });
-    }, Promise.resolve());
+    }, Promise.resolve()).then(function () { F._photoTag = ''; });
   }
   function renderPhotos() {
     $('scPhotoCount').textContent = F.photos.length ? F.photos.length + ' of ' + CONFIG.MAX_PHOTOS + ' photos' : 'No photos yet';
@@ -553,6 +868,20 @@
         row('Hazards', F.hazards.map(function (h) { return label('hazard', h); }).concat(F.hazardNote ? [F.hazardNote] : []).join(' · '), sk.hazards) +
         row('Photos', String(F.photos.length), sk.photos) +
         row('Priority', F.priority ? label('priority', F.priority) : '', sk.priority);
+    } else if (F.phase === 'endpoint') {
+      var pk = packet(), st = pkStr(pk), scr = screens();
+      var crits = scr.filter(function (x) { return x.section === 'crit'; }), zs = scr.filter(function (x) { return x.section === 'rzone'; }), ps = scr.filter(function (x) { return x.section === 'rpit'; });
+      var answered = crits.map(function (x) { return F.items[x.crit.criterion_id]; }).filter(function (i) { return i && i.answer; });
+      var dec = F.decision ? label('endpoint_decision', F.decision) : '';
+      if (F.decision === 'not_met') dec += [F.what_is_left, (F.followup_methods === null ? strMethods() : F.followup_methods).join(', '), F.priority && (label('priority', F.priority).split(':')[0] + ' priority')].filter(Boolean).map(function (t) { return ' · ' + t; }).join('');
+      if (F.decision === 'another_look') dec += F.another_look_condition ? ' · ' + (F.another_look_condition === 'date' ? F.another_look_date || 'date not set' : label('another_look_condition', F.another_look_condition)) : '';
+      html += row('Against', st ? 'STR rev ' + st.str_revision + ': ' + ((st.fields || {}).recommended || []).join(', ') : 'no treatment recommendation on this phone') +
+        row('Water', [F.water_level && label('water_level', F.water_level).split(':')[0], F.water_trend && label('water_trend', F.water_trend)].filter(Boolean).join(' · '), sk.water_level && sk.water_trend) +
+        row('Criteria', answered.length ? answered.map(function (i) { return label('endpoint_answer', i.answer) + (i.answer === 'not_met' && i.bank_zone ? ' (' + label('bank_zone', i.bank_zone).toLowerCase() + ')' : i.answer === 'not_checked' && i.not_checked_reason ? ' (' + label('not_checked_reason', i.not_checked_reason).toLowerCase() + ')' : ''); }).join(' · ') + (answered.length < crits.length ? ' · ' + (crits.length - answered.length) + ' skipped' : '') : '', !answered.length && crits.length > 0) +
+        row('Zones', zs.map(function (x) { var zr = F.zone_reviews[x.zone.uuid]; return 'Zone ' + ((x.zone.fields || {}).zone_id || '') + ': ' + (zr && zr.result ? label('review_zone_result', zr.result) + (zr.thickness ? ', ' + label('thickness', zr.thickness).split(':')[0].toLowerCase() : '') : 'skipped'); }).concat(F.zones.map(function (z, i) { return 'New ' + itemTitle('zones', z, i).toLowerCase(); })).join(' | '), !zs.length && !F.zones.length) +
+        row('Pits', ps.map(function (x) { var mine = myPitFor(x.pit.uuid); return 'Pit ' + ((x.pit.fields || {}).pit_id || '') + ': ' + (mine ? 'dug again' + (mine.subsurface_character ? ', ' + label('subsurface_character', mine.subsurface_character).split(':')[0].toLowerCase() : '') : F.pit_again[x.pit.uuid] === 'no' ? 'not dug' : 'skipped'); }).concat(F.pits.filter(function (x) { return !x.review_of; }).map(function (x, i) { return 'New pit ' + (i + 1) + (x.pit_depth_cm != null ? ' · ' + x.pit_depth_cm + ' cm' : ''); })).join(' | '), !ps.length && !F.pits.length) +
+        row('Photos', String(F.photos.length), sk.photos) +
+        row('Decision', dec);
     } else {
       html += row('Survey', [F.survey_kind && label('survey_kind', F.survey_kind), F.water_body && label('water_body', F.water_body)].filter(Boolean).join(' · '), sk.survey_kind && sk.water_body) +
         row('Water', [F.water_level && label('water_level', F.water_level), F.water_trend && label('water_trend', F.water_trend)].filter(Boolean).join(' · '), sk.water_level && sk.water_trend) +
@@ -581,11 +910,30 @@
     if (F.team) A.lsSet('wri_scat_team', F.team);
     if (F.name) A.lsSet('wri_scat_name', F.name);
     if (F.org) A.lsSet('wri_scat_org', F.org);
-    var fields = { record_type: F.phase === 'recon' ? 'recon' : 'scat_survey', schema_version: '1',
+    var fields = { record_type: F.phase === 'recon' ? 'recon' : F.phase === 'endpoint' ? 'endpoint_review' : 'scat_survey', schema_version: '1',
       segment_id: F.segment, bank_side: F.bank, lat: F.lat, lon: F.lon, gps_acc_m: F.acc, captured_at: F.captured,
       team: F.team, user: F.name, organization: F.org, notes: F.notes, skipped: Object.keys(F.skipped) };
     if (F.phase === 'recon') {
       Object.assign(fields, { oil_present: F.oil, oil_extent: F.extent, water_trend: F.trend, access: F.access, hazards: F.hazards.slice(), hazard_note: F.hazardNote, priority: F.priority });
+    } else if (F.phase === 'endpoint') {
+      var st0 = sticky(); st0.water_level = F.water_level; st0.water_trend = F.water_trend; A.lsSet(STICKY_KEY, JSON.stringify(st0));
+      var pk = packet(), st = pkStr(pk), b = pkBasis(pk), curPk = window.ScatPacket && ScatPacket.current(), scr = screens(), ms = strMethods();
+      var follow = F.decision === 'not_met' ? (F.followup_methods === null ? ms.slice() : F.followup_methods.slice()) : [];
+      Object.assign(fields, {
+        decision: F.decision, water_level: F.water_level, water_trend: F.water_trend,
+        str_uuid: st ? st.uuid : '', str_revision: st ? st.str_revision : null, basis_survey_uuid: b ? b.uuid : '',
+        latest_survey_uuid: pk && pk.latest_survey ? pk.latest_survey.uuid : (b ? b.uuid : ''),
+        criteria_version: (curPk && curPk.criteria_version) || (cfg && cfg.criteria_version) || '', packet_fetched_at: (curPk && curPk.fetched_at) || '',
+        shore_code: epShoreCode(pk), oil_category: epOilCat(pk),
+        what_is_left: F.what_is_left, followup_methods: follow, followup_same_as_str: F.decision === 'not_met' ? (ms.length > 0 && follow.length === ms.length && ms.every(function (m) { return follow.indexOf(m) >= 0; })) : null,
+        priority: F.decision === 'not_met' ? F.priority : '', another_look_condition: F.decision === 'another_look' ? F.another_look_condition : '',
+        another_look_date: F.decision === 'another_look' && F.another_look_condition === 'date' ? F.another_look_date : '',
+        items: scr.filter(function (x) { return x.section === 'crit'; }).map(function (x) { var it = Object.assign({}, critItem(x.crit)); if (!it.answer) it.skipped = true; return it; }),
+        zones: scr.filter(function (x) { return x.section === 'rzone'; }).map(function (x) { var zr = Object.assign({}, zoneReview(x.zone)); if (!zr.result) zr.skipped = true; return zr; })
+          .concat(F.zones.map(function (z, i) { var o = Object.assign({ zone_id: 'N' + (i + 1), review_of: '' }, z); delete o.skipped_map; return o; })),
+        pits: F.pits.map(function (x, i) { var o = Object.assign({ pit_id: (x.review_of ? 'R' : 'N') + (i + 1) }, x); delete o.skipped_map; return o; }),
+        pits_not_dug: scr.filter(function (x) { return x.section === 'rpit' && F.pit_again[x.pit.uuid] === 'no'; }).map(function (x) { return x.pit.uuid; })
+      });
     } else {
       var st = sticky();
       SURVEY.forEach(function (s) { if (s.sticky && s.field) st[s.field] = F[s.field]; });
@@ -632,7 +980,7 @@
     done = null;
     F = fresh();
     if (keep) { F.segment = keep.segment; F.segmentLabel = keep.segmentLabel; F.bank = keep.bank; F.lat = keep.lat; F.lon = keep.lon; F.acc = keep.acc; }
-    ['scSegSearch', 'scLat', 'scLon', 'scNotes', 'scTileNote', 'scTileNum', 'scItemNotes', 'scStrNotes', 'scExtentNum'].forEach(function (id) { $(id).value = ''; });
+    ['scSegSearch', 'scLat', 'scLon', 'scNotes', 'scTileNote', 'scTileNum', 'scItemNotes', 'scStrNotes', 'scExtentNum', 'scWhatLeft', 'scLookDate'].forEach(function (id) { $(id).value = ''; });
     if (F.lat != null) setLoc(F, F.lat, F.lon, F.acc, 'restore', 'scCoords', 'scLat', 'scLon');
     else { $('scCoords').textContent = 'No location yet'; $('scGps').textContent = '📍 Use My Location'; $('scGps').classList.remove('ok'); placeMarker(); }
     $('scEndGps').textContent = '📍 Mark the end'; $('scEndGps').classList.remove('ok');
@@ -673,7 +1021,8 @@
     if (!navigator.onLine) { done(); A.toast('PIN saved. It is checked when you are back in signal.'); return; }
     A.busy(b, true, 'Checking…');
     Store.deviceId().then(function (device) { return Api.post('pin', { pin: pin, device: device }, 20000, CONFIG.SCAT_API); }).then(function () {
-      A.busy(b, false); A.toast('SCAT PIN accepted.'); return done();
+      A.busy(b, false); A.toast('SCAT PIN accepted.');
+      return done().then(function () { if (F && F.phase === 'endpoint' && S.incident) syncPacket(); });
     }, function (e) {
       A.busy(b, false);
       if (e.code === 'pin_invalid' || e.code === 'pin_locked') { $('scPinMsg').textContent = e.message; return; }
@@ -773,6 +1122,32 @@
     $('scTeam').addEventListener('input', function () { F.team = this.value.trim(); });
     $('scName').addEventListener('input', function () { F.name = this.value.trim(); });
     $('scOrg').addEventListener('input', function () { F.org = this.value.trim(); });
+    // Endpoint Review screens
+    $('scPacketBar').addEventListener('click', function (e) { if (e.target.id === 'scPacketSync') syncPacket(); });
+    $('scSegAll').addEventListener('click', function () { F._allSegs = !F._allSegs; renderSegments(); });
+    $('scRecBody').addEventListener('click', function (e) { var img = e.target.closest('img.th'); if (img && img.src) window.open(img.src, '_blank'); });
+    $('scCritTiles').addEventListener('click', function (e) { var b = e.target.closest('.tile'); if (b) onCritTile('answer', b.dataset.code); });
+    $('scCritWhere').addEventListener('click', function (e) { var b = e.target.closest('.tile'); if (b) onCritTile('bank_zone', b.dataset.code); });
+    $('scCritHow').addEventListener('click', function (e) { var b = e.target.closest('.tile'); if (b) onCritTile('oil_extent', b.dataset.code); });
+    $('scCritReason').addEventListener('click', function (e) { var b = e.target.closest('.tile'); if (b) onCritTile('not_checked_reason', b.dataset.code); });
+    $('scCritCam').addEventListener('click', function () { var s = cur(); if (s.section === 'crit') { F._photoTag = 'crit:' + s.crit.criterion_id; $('scCamInput').click(); } });
+    $('scRZTiles').addEventListener('click', function (e) { var b = e.target.closest('.tile'); if (b) onRZoneTile('result', b.dataset.code); });
+    $('scRZThick').addEventListener('click', function (e) { var b = e.target.closest('.tile'); if (b) onRZoneTile('thickness', b.dataset.code); });
+    $('scRZChar').addEventListener('click', function (e) { var b = e.target.closest('.tile'); if (b) onRZoneTile('oil_character', b.dataset.code); });
+    $('scRZCam').addEventListener('click', function () { var s = cur(); if (s.section === 'rzone') { F._photoTag = 'zone:' + s.zone.uuid; $('scCamInput').click(); } });
+    $('scRPTiles').addEventListener('click', function (e) { var b = e.target.closest('.tile'); if (b) onRPitTile(b.dataset.code); });
+    $('scRPDone').addEventListener('click', function (e) { if (e.target.id === 'scRPEdit') { var s = cur(), mine = myPitFor(s.pit.uuid); if (mine) openItem('pits', F.pits.indexOf(mine)); } });
+    $('scDecTiles').addEventListener('click', function (e) { var b = e.target.closest('.tile'); if (b) onDecisionTile('decision', b.dataset.code); });
+    $('scDecMethods').addEventListener('click', function (e) { var b = e.target.closest('.tile'); if (b) onDecisionTile('followup_methods', b.dataset.code); });
+    $('scDecPriority').addEventListener('click', function (e) { var b = e.target.closest('.tile'); if (b) onDecisionTile('priority', b.dataset.code); });
+    $('scLookTiles').addEventListener('click', function (e) { var b = e.target.closest('.tile'); if (b) onDecisionTile('another_look_condition', b.dataset.code); });
+    $('scLookDate').addEventListener('input', function () { F.another_look_date = this.value; });
+    $('scWhatLeft').addEventListener('input', function () { F.what_is_left = this.value; });
+    window.addEventListener('packet:changed', function () {
+      if (!F || F.phase !== 'endpoint') return;
+      if (!F.sub && cur().section === 'where') { renderPacketBar(); renderSegments(); }
+      else if (!F.sub && cur().section === 'recommended') render();
+    });
     $('scNext').addEventListener('click', next);
     $('scSkip').addEventListener('click', skip);
     $('scBack').addEventListener('click', prev);

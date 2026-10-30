@@ -162,3 +162,20 @@ textarea { min-height: 96px; resize: vertical; }
 .seglist button small { display: block; color: var(--muted); font-size: 12px; }
 .picked { background: var(--panel); border: 1.5px solid var(--amber); border-radius: 8px; padding: 10px 12px; font-size: 14px; margin-top: 8px; }
 .skipped { color: var(--amber); font-style: italic; }
+
+/* Endpoint Review (2026-10-30): packet cards, criterion screens, thumbnails */
+.pk { background: var(--panel); border-radius: 12px; padding: 12px; margin-bottom: 10px; font-size: 14px; line-height: 1.4; }
+.pk-h { font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap; }
+.pk-tag { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 10px; background: #3b82f6; color: #fff; white-space: nowrap; }
+.pk-tag.amber { background: var(--amber); color: #2b1d00; } .pk-tag.green { background: var(--green); color: #10281a; } .pk-tag.red { background: var(--red); color: #fff; } .pk-tag.grey { background: #8b9196; color: #111; }
+.pk-big { font-size: 17px; font-weight: 700; margin: 4px 0; }
+.pk-note { margin: 4px 0; }
+.pk-meta { color: var(--muted); font-size: 13px; }
+.pk-zone { border-top: 1px solid #3a3d3d; padding: 8px 0 4px; }
+.pk-zone b { display: block; }
+.thumbs-row { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.thumbs-row img.th { width: 84px; height: 63px; object-fit: cover; border-radius: 8px; background: #1f2121; }
+.thumbs-row img.th.miss { opacity: .25; }
+.critn { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; }
+.subq { font-size: 16px; font-weight: 700; margin: 16px 0 8px; }
+.sq .pk-tag { vertical-align: middle; }

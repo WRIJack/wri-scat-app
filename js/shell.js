@@ -39,6 +39,7 @@
   function recordTitle(r) {
     var f = r.fields || {};
     if (f.record_type === 'scat_survey') return 'SCAT survey: ' + (f.segment_id || 'no segment') + (f.zones ? ' · ' + f.zones.length + ' zone(s)' : '');
+    if (f.record_type === 'endpoint_review') return 'Endpoint review: ' + (f.segment_id || 'no segment') + ' · ' + ({ met: 'meets endpoint', not_met: 'does not meet', another_look: 'needs another look' }[f.decision] || f.decision || '');
     return 'SCAT recon: ' + (f.segment_id || 'no segment') + (f.priority ? ' · ' + f.priority + ' priority' : '');
   }
 

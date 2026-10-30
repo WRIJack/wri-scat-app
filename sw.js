@@ -10,7 +10,7 @@
  *
  * APP_VERSION must equal the ?v= stamps in index.html; bump both together.
  */
-var APP_VERSION = '2026-10-29-1';
+var APP_VERSION = '2026-10-30-1';
 var CACHE = 'wri-scat-' + APP_VERSION;
 var LIB_CACHE = 'wri-scat-lib-leaflet-1.9.4';
 var SCOPE_PATH = new URL(self.registration.scope).pathname;   // e.g. /wri-scat-app/ or /wri-scat/
@@ -24,7 +24,7 @@ var SHELL = [
   './css/app.css?v=' + APP_VERSION,
   './js/config.js?v=' + APP_VERSION, './js/store.js?v=' + APP_VERSION, './js/api.js?v=' + APP_VERSION,
   './js/outbox.js?v=' + APP_VERSION, './js/forms.js?v=' + APP_VERSION, './js/shell.js?v=' + APP_VERSION,
-  './js/scat-ui.js?v=' + APP_VERSION
+  './js/scat-packet.js?v=' + APP_VERSION, './js/scat-ui.js?v=' + APP_VERSION
 ];
 var LIBS = [
   'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js',
